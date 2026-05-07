@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>智能外卖架管理系统 - 原型预览</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    @keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(124, 92, 255, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(124, 92, 255, 0); } 100% { box-shadow: 0 0 0 0 rgba(124, 92, 255, 0); } }
+    .pulse-violet { animation: pulse-ring 2s infinite; }
+    input[type="range"] { -webkit-appearance: none; appearance: none; height: 8px; border-radius: 4px; outline: none; }
+    input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: white; box-shadow: 0 2px 6px rgba(0,0,0,0.2); cursor: pointer; }
+    .page-nav { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; display: flex; gap: 8px; background: rgba(255,255,255,0.98); padding: 8px 16px; border-radius: 50px; box-shadow: 0 4px 30px rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.5); }
+    .page-nav button { padding: 10px 20px; border-radius: 25px; border: none; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+    .page-nav button.active { background: linear-gradient(135deg, #7c3aed, #8b5cf6); color: white; }
+    .page-nav button:not(.active) { background: #f1f5f9; color: #64748b; }
+    .page-nav button:not(.active):hover { background: #e2e8f0; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" data-presets="react">
+const { useState, useMemo } = React;
+
+// ========== Icons ==========
+const Home = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>;
+const ClipboardList = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/></svg>;
+const Package = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" x2="12" y1="22" y2="12"/></svg>;
+const Boxes = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z"/><path d="m7 16.5-4.74-2.85"/><path d="m7 16.5 5-3"/><path d="M7 16.5v5.17"/><path d="M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z"/><path d="m17 16.5-5-3"/><path d="m17 16.5 4.74-2.85"/><path d="M17 16.5v5.17"/><path d="M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z"/></svg>;
+const Shelf = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/><circle cx="12" cy="12" r="4"/></svg>;
+const Lightbulb = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>;
+const RefreshCw = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>;
+const Settings = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>;
+const Store = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/></svg>;
+const Search = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>;
+const ChevronDown = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg>;
+const MoreHorizontal = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>;
+const AlertTriangle = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>;
+const Clock3 = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 12h.01"/><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 2v4"/></svg>;
+const Zap = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>;
+const Activity = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>;
+const Wifi = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/><path d="M5 12.859a10 10 0 0 1 14 0"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/></svg>;
+const Unlock = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>;
+const SlidersHorizontal = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/></svg>;
+const Eye = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>;
+const QrCode = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/></svg>;
+const Keyboard = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="M6 8h.001"/><path d="M10 8h.001"/><path d="M14 8h.001"/><path d="M18 8h.001"/><path d="M8 12h.001"/><path d="M12 12h.001"/><path d="M16 12h.001"/><path d="M7 16h10"/></svg>;
+const Link2 = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>;
+const Layers = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>;
+const Grid3X3 = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>;
+const BarChart3 = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>;
+const Thermometer = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/></svg>;
+const Settings2 = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>;
+const CheckCircle2 = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>;
+const Minus = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14"/></svg>;
+const Plus = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14"/><path d="M12 5v14"/></svg>;
+const X = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>;
+const ScanLine = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8v8"/><path d="M17 8v8"/></svg>;
+const Timer = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></svg>;
+const TrendingUp = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>;
+const Bell = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>;
+const Download = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>;
+const Upload = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>;
+const HandMetal = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>;
+const Edit3 = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>;
+const Trash2 = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
+const Power = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" x2="12" y1="2" y2="12"/></svg>;
+const RotateCcw = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>;
+const EyeOff = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>;
+
+// ========== Components ==========
+const Card = ({ children, className = "" }) => (
+  <div className={`rounded-[28px] border border-white/80 bg-white/72 shadow-[10px_14px_34px_rgba(35,45,65,0.10),inset_0_1px_0_rgba(255,255,255,0.96)] backdrop-blur-xl ${className}`}>{children}</div>
+);
+const Btn = ({ children, active = false, danger = false }) => {
+  const base = "h-12 rounded-2xl border px-5 text-sm font-medium transition-all";
+  const style = active ? "border-emerald-100 bg-emerald-50 text-emerald-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_8px_18px_rgba(20,160,120,0.12)]" : danger ? "border-red-100 bg-red-50 text-red-600 shadow-[0_8px_18px_rgba(220,60,60,0.08)]" : "border-slate-200/80 bg-white/70 text-slate-600 shadow-[0_8px_18px_rgba(35,45,65,0.08)] hover:bg-white";
+  return <button className={`${base} ${style}`}>{children}</button>;
+};
+const IconBtn = ({ icon: Icon }) => <button className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-slate-200/80 bg-white/70 shadow-[0_6px_14px_rgba(35,45,65,0.08)] transition-all hover:bg-white">{Icon && <Icon />}</button>;
+
+// ========== Data ==========
+const menuItems = [
+  { icon: Home, label: "首页总览" },
+  { icon: ClipboardList, label: "订单管理" },
+  { icon: Package, label: "商品管理" },
+  { icon: Boxes, label: "库存管理" },
+  { icon: Shelf, label: "智能外卖架" },
+  { icon: Lightbulb, label: "灯控中心" },
+  { icon: RefreshCw, label: "平台同步" },
+  { icon: Settings, label: "系统设置" },
+];
+const statusMap = {
+  empty: { label: "空闲", dot: "bg-slate-300", card: "bg-white/70 border-slate-200 text-slate-500", text: "text-slate-400" },
+  occupied: { label: "已占用", dot: "bg-emerald-500", card: "bg-emerald-50/80 border-emerald-200 text-emerald-700", text: "text-emerald-600" },
+  pickup: { label: "取货中", dot: "bg-blue-500", card: "bg-blue-50/80 border-blue-200 text-blue-700", text: "text-blue-600" },
+  timeout: { label: "超时未取", dot: "bg-orange-500", card: "bg-orange-50/80 border-orange-200 text-orange-700", text: "text-orange-600" },
+  error: { label: "异常", dot: "bg-red-500", card: "bg-red-50/80 border-red-200 text-red-600", text: "text-red-500" },
+  maintenance: { label: "维护", dot: "bg-violet-500", card: "bg-violet-50/80 border-violet-200 text-violet-600", text: "text-violet-500" },
+};
+const shelfData = [
+  { shelf: "A货架", online: true, slots: [{ code: "A-01", status: "empty" }, { code: "A-02", status: "empty" }, { code: "A-03", status: "occupied", platform: "饿了么", remain: "12:00", customer: "张**" }, { code: "A-04", status: "pickup", platform: "美团", remain: "09:12", customer: "李**" }, { code: "A-05", status: "empty" }, { code: "A-06", status: "occupied", platform: "美团", remain: "15:30", customer: "王**" }, { code: "A-07", status: "timeout", platform: "美团", remain: "02:00", customer: "赵**" }, { code: "A-08", status: "empty" }]},
+  { shelf: "B货架", online: true, slots: [{ code: "B-01", status: "empty" }, { code: "B-02", status: "occupied", platform: "饿了么", remain: "08:12", customer: "钱**" }, { code: "B-03", status: "pickup", platform: "美团", remain: "09:41", customer: "孙**" }, { code: "B-04", status: "empty" }, { code: "B-05", status: "occupied", platform: "饿了么", remain: "22:45", customer: "周**" }, { code: "B-06", status: "timeout", platform: "美团", remain: "01:20", customer: "吴**" }, { code: "B-07", status: "timeout", platform: "饿了么", remain: "00:17", customer: "郑**" }, { code: "B-08", status: "empty" }]},
+  { shelf: "C货架", online: false, slots: [{ code: "C-01", status: "error" }, { code: "C-02", status: "empty" }, { code: "C-03", status: "maintenance" }, { code: "C-04", status: "maintenance" }, { code: "C-05", status: "empty" }, { code: "C-06", status: "occupied", platform: "美团", remain: "18:30", customer: "冯**" }, { code: "C-07", status: "timeout", platform: "美团", remain: "02:08", customer: "陈**" }, { code: "C-08", status: "empty" }]},
+  { shelf: "D货架", online: true, slots: [{ code: "D-01", status: "empty" }, { code: "D-02", status: "occupied", platform: "饿了么", remain: "15:21", customer: "褚**" }, { code: "D-03", status: "empty" }, { code: "D-04", status: "empty" }, { code: "D-05", status: "pickup", platform: "美团", remain: "10:05", customer: "卫**" }, { code: "D-06", status: "empty" }, { code: "D-07", status: "timeout", platform: "饿了么", remain: "00:59", customer: "蒋**" }, { code: "D-08", status: "empty" }]},
+];
+const moduleList = [
+  { code: "M-A01", shelf: "A货架", channels: 12, status: "在线", lights: 8, temp: "36.5℃", fw: "v1.2.3", heartbeat: "09:41:23", brightness: 85 },
+  { code: "M-A02", shelf: "A货架", channels: 12, status: "在线", lights: 7, temp: "35.9℃", fw: "v1.2.3", heartbeat: "09:41:19", brightness: 80 },
+  { code: "M-B01", shelf: "B货架", channels: 12, status: "在线", lights: 11, temp: "37.2℃", fw: "v1.2.4", heartbeat: "09:41:21", brightness: 90 },
+  { code: "M-B02", shelf: "B货架", channels: 12, status: "在线", lights: 6, temp: "36.8℃", fw: "v1.2.4", heartbeat: "09:41:18", brightness: 75 },
+  { code: "M-C01", shelf: "C货架", channels: 8, status: "离线", lights: 0, temp: "--", fw: "v1.2.1", heartbeat: "09:34:02", brightness: 0 },
+  { code: "M-D01", shelf: "D货架", channels: 12, status: "在线", lights: 4, temp: "35.5℃", fw: "v1.2.3", heartbeat: "09:41:25", brightness: 70 },
+  { code: "M-D02", shelf: "D货架", channels: 12, status: "维护", lights: 0, temp: "34.2℃", fw: "v1.2.3", heartbeat: "09:40:00", brightness: 0 },
+  { code: "M-E01", shelf: "E货架", channels: 16, status: "在线", lights: 12, temp: "38.1℃", fw: "v1.2.5", heartbeat: "09:41:30", brightness: 95 },
+];
+const groups = [
+  { id: 1, name: "A区组", modules: ["M-A01", "M-A02"], color: "emerald" },
+  { id: 2, name: "B区组", modules: ["M-B01", "M-B02"], color: "blue" },
+  { id: 3, name: "C区组", modules: ["M-C01"], color: "orange" },
+  { id: 4, name: "D区组", modules: ["M-D01", "M-D02"], color: "violet" },
+];
+const pendingOrders = [
+  { id: "DD202405120001", platform: "美团外卖", items: "汉堡套餐 x1", customer: "张明", time: "12:30" },
+  { id: "DD202405120002", platform: "饿了么", items: "奶茶大杯 x2", customer: "李华", time: "12:35" },
+  { id: "DD202405120003", platform: "美团外卖", items: "炒饭+饮料", customer: "王芳", time: "12:40" },
+  { id: "DD202405120004", platform: "饿了么", items: "披萨套餐", customer: "赵伟", time: "12:45" },
+  { id: "DD202405120005", platform: "美团外卖", items: "炸鸡+可乐", customer: "钱琳", time: "12:50" },
+];
+
+// ========== SlotCard ==========
+function SlotCard({ slot, selected, onClick }) {
+  const config = statusMap[slot.status];
+  return (
+    <button onClick={() => onClick(slot)} className={`relative flex h-[86px] min-w-[88px] flex-col items-center justify-center rounded-2xl border px-2 text-center text-sm transition-all ${config.card} ${selected ? "scale-[1.02] shadow-[0_0_0_4px_rgba(124,92,255,0.12),0_16px_30px_rgba(124,92,255,0.25)] ring-2 ring-violet-400" : "shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_8px_18px_rgba(35,45,65,0.06)]"}`}>
+      {slot.status === "pickup" && <span className="absolute right-2 top-2 h-2.5 w-2.5 animate-pulse rounded-full bg-violet-500 shadow-[0_0_18px_rgba(124,92,255,0.9)]" />}
+      {slot.status === "timeout" && <span className="absolute left-2 top-2"><Timer /></span>}
+      <span className="text-base font-semibold">{slot.code}</span>
+      <span className={`mt-1 text-xs font-semibold ${config.text}`}>{config.label}</span>
+      {slot.remain && <span className="mt-0.5 text-[11px] text-slate-500">剩 {slot.remain}</span>}
+      {slot.platform && <span className="text-[11px] text-slate-400">{slot.platform}</span>}
+    </button>
+  );
+}
+
+// ========== Sidebar ==========
+function Sidebar({ activePage }) {
+  const items = activePage === "order" ? menuItems.map(i => ({...i, label: i.label === "订单绑定" ? {...i, active: true} : i})) : menuItems;
+  return (
+    <aside className="w-[280px] shrink-0 rounded-[34px] border border-white/80 bg-white/58 p-4 shadow-[14px_22px_48px_rgba(45,55,72,0.16),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-2xl">
+      <div className="mb-8 flex items-center justify-between">
+        <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-slate-900 to-slate-700 text-white shadow-[0_14px_24px_rgba(15,23,42,0.22)]"><Activity /></div>
+        <button className="grid h-10 w-10 place-items-center rounded-2xl border border-white bg-white/70 shadow-[0_8px_18px_rgba(30,40,60,0.10)]"><MoreHorizontal size={18} /></button>
+      </div>
+      <p className="mb-3 pl-3 text-sm font-medium text-slate-400">主菜单</p>
+      <nav className="space-y-2">
+        {menuItems.map((item) => (
+          <button key={item.label} className={`flex h-12 w-full items-center gap-3 rounded-2xl px-4 text-[15px] font-medium transition-all ${item.active ? "bg-white text-violet-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.96),0_14px_24px_rgba(60,70,90,0.12)]" : "text-slate-600 hover:bg-white/60"}`}>
+            <item.icon size={20} /><span>{item.label}</span>
+          </button>
+        ))}
+      </nav>
+      <div className="mt-28 space-y-3">
+        <Card className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white shadow-inner"><Store size={22} /></div>
+            <div><p className="font-semibold text-slate-800">美味小屋便利店</p><p className="text-sm text-slate-400">切换门店⌄</p></div>
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="space-y-2 text-sm"><p className="flex items-center gap-2 text-slate-500"><span className="h-2 w-2 rounded-full bg-emerald-500" /> 系统状态</p><p className="font-semibold text-emerald-600">运行正常</p></div>
+        </Card>
+      </div>
+    </aside>
+  );
+}
+
+// ========== Page 1: 格口看板 ==========
+function ShelfKanban() {
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [viewMode, setViewMode] = useState("grid");
+  const slotCounts = useMemo(() => {
+    const flat = shelfData.flatMap(r => r.slots);
+    return { total: flat.length, empty: flat.filter(s => s.status === "empty").length, occupied: flat.filter(s => s.status === "occupied").length, pickup: flat.filter(s => s.status === "pickup").length, timeout: flat.filter(s => s.status === "timeout").length, error: flat.filter(s => s.status === "error").length, maintenance: flat.filter(s => s.status === "maintenance").length };
+  }, []);
+
+  return (
+    <div className="min-h-screen overflow-hidden bg-[#eef0f0] p-6 text-slate-800">
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(255,255,255,0.95),transparent_30%),radial-gradient(circle_at_80%_0%,rgba(216,226,255,0.55),transparent_25%),linear-gradient(135deg,rgba(255,255,255,0.35),rgba(220,225,230,0.28))]" />
+      <div className="relative mx-auto flex max-w-[1920px] gap-4">
+        <Sidebar />
+        <main className="flex-1 rounded-[34px] border border-white/85 bg-white/62 p-8 shadow-[14px_22px_54px_rgba(45,55,72,0.14),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-2xl">
+          <header className="mb-6 flex items-start justify-between gap-4">
+            <div><p className="text-sm font-medium text-slate-500">即时零售运营中台 〉 <span className="text-slate-900">智能外卖架</span></p><h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-900">格口看板</h1><p className="mt-1 text-slate-500">实时监控所有货架格口状态</p></div>
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-[280px] items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/70 px-4 shadow-[0_10px_22px_rgba(30,40,60,0.08)]"><Search /><input className="w-full bg-transparent text-sm outline-none" placeholder="搜索格口 / 订单号 / 取货人" /></div>
+              <Btn>全部货架 <ChevronDown /></Btn><Btn active>只看待取</Btn><IconBtn icon={Bell} />
+            </div>
+          </header>
+          <section className="mb-5 grid grid-cols-6 gap-4">
+            {[{ icon: Layers, label: "格口总数", value: slotCounts.total, color: "from-slate-100 to-slate-50 text-slate-600" }, { icon: Package, label: "已占用", value: slotCounts.occupied, color: "from-emerald-100 to-teal-50 text-emerald-600" }, { icon: HandMetal, label: "待取货", value: slotCounts.pickup, color: "from-blue-100 to-sky-50 text-blue-600" }, { icon: Timer, label: "超时未取", value: slotCounts.timeout, color: "from-orange-100 to-amber-50 text-orange-600" }, { icon: CheckCircle2, label: "空闲", value: slotCounts.empty, color: "from-slate-100 to-slate-50 text-slate-500" }, { icon: AlertTriangle, label: "异常/维护", value: slotCounts.error + slotCounts.maintenance, color: "from-red-100 to-orange-50 text-red-600" }].map((s, i) => (
+              <Card key={i} className="p-4"><div className="flex items-center gap-3"><div className={`grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br ${s.color} shadow-lg`}><s.icon size={22} /></div><div><p className="text-sm text-slate-500">{s.label}</p><p className="text-2xl font-semibold">{s.value}</p></div></div></Card>
+            ))}
+          </section>
+          <section className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {[{ key: "grid", icon: Grid3X3, label: "网格视图" }, { key: "list", icon: Layers, label: "列表视图" }, { key: "chart", icon: BarChart3, label: "统计视图" }].map(m => (
+                <button key={m.key} onClick={() => setViewMode(m.key)} className={`flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-medium transition-all ${viewMode === m.key ? "bg-white shadow-[0_6px_14px_rgba(35,45,65,0.10)]" : "text-slate-500 hover:bg-white/60"}`}><m.icon size={18} />{m.label}</button>
+              ))}
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-slate-500">货架状态：</span>
+              {shelfData.map(s => <div key={s.shelf} className="flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${s.online ? "bg-emerald-500" : "bg-red-500"}`} /><span className="text-sm font-medium text-slate-700">{s.shelf}</span><span className="text-sm text-slate-400">{Math.round((s.slots.filter(sl => sl.status !== "empty").length / s.slots.length) * 100)}%</span></div>)}
+            </div>
+          </section>
+          <div className="grid grid-cols-[1fr_340px] gap-4">
+            <Card className="p-6">
+              <div className="mb-5 flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-slate-900">货架格口矩阵</h2>
+                <div className="flex items-center gap-3"><span className="text-xs text-slate-400">图例：</span>{Object.entries({ empty: "空闲", occupied: "已占用", pickup: "待取", timeout: "超时", error: "异常", maintenance: "维护" }).map(([k, v]) => <span key={k} className="flex items-center gap-1.5 text-xs text-slate-500"><span className={`h-2 w-2 rounded-full ${statusMap[k].dot}`} />{v}</span>)}</div>
+              </div>
+              <div className="space-y-4">
+                {shelfData.map(row => (
+                  <div key={row.shelf} className="grid grid-cols-[90px_1fr] gap-4 border-b border-slate-100 pb-4 last:border-0 last:pb-0">
+                    <div className="pt-3">
+                      <p className="text-lg font-semibold text-slate-800">{row.shelf}</p>
+                      <p className={`mt-2 flex items-center gap-2 text-sm ${row.online ? "text-emerald-600" : "text-red-500"}`}><span className={`h-2 w-2 rounded-full ${row.online ? "bg-emerald-500" : "bg-red-500"}`} />{row.online ? "在线" : "离线"}</p>
+                      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500" style={{ width: `${(row.slots.filter(s => s.status !== "empty").length / row.slots.length) * 100}%` }} /></div>
+                      <p className="mt-1 text-xs text-slate-400">{row.slots.filter(s => s.status !== "empty").length}/{row.slots.length} 已用</p>
+                    </div>
+                    <div className="grid grid-cols-8 gap-2.5">{row.slots.map(slot => <SlotCard key={slot.code} slot={slot} selected={selectedSlot?.code === slot.code} onClick={s => setSelectedSlot(selectedSlot?.code === s.code ? null : s)} />)}</div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+            <div className="space-y-4">
+              <Card className="p-5">
+                <div className="mb-4 flex items-center justify-between"><h3 className="text-lg font-semibold text-slate-900">待取订单</h3><span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-600">{slotCounts.pickup} 单</span></div>
+                <div className="space-y-3">{shelfData.flatMap(r => r.slots).filter(s => s.status === "pickup").map(slot => (
+                  <div key={slot.code} className="flex items-center justify-between rounded-2xl bg-blue-50/60 p-3"><div><p className="font-semibold text-slate-800">{slot.code}</p><p className="text-sm text-slate-500">{slot.customer} · {slot.platform}</p></div><div className="text-right"><p className="font-semibold text-blue-600">{slot.remain}</p><p className="text-xs text-slate-400">剩余时间</p></div></div>
+                ))}</div>
+              </Card>
+              <Card className="p-5">
+                <div className="mb-4 flex items-center justify-between"><h3 className="text-lg font-semibold text-slate-900">超时提醒</h3><span className="rounded-full bg-orange-50 px-3 py-1 text-sm font-semibold text-orange-600">{slotCounts.timeout} 单</span></div>
+                <div className="space-y-3">{shelfData.flatMap(r => r.slots).filter(s => s.status === "timeout").map(slot => (
+                  <div key={slot.code} className="flex items-center justify-between rounded-2xl bg-orange-50/60 p-3"><div><p className="font-semibold text-slate-800">{slot.code}</p><p className="text-sm text-slate-500">{slot.customer}</p></div><div className="flex items-center gap-2"><Timer /><span className="font-semibold text-orange-600">{slot.remain}</span></div></div>
+                ))}</div>
+                <button className="mt-3 w-full rounded-xl border border-orange-200 bg-orange-50 py-2 text-sm font-semibold text-orange-600">一键催单</button>
+              </Card>
+              {selectedSlot && (
+                <Card className="p-5">
+                  <div className="mb-4 flex items-center justify-between"><h3 className="text-lg font-semibold text-slate-900">格口详情</h3><button onClick={() => setSelectedSlot(null)} className="text-slate-400 hover:text-slate-600"><X /></button></div>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between"><span className="text-slate-400">格口号</span><span className="font-semibold text-slate-800">{selectedSlot.code}</span></div>
+                    <div className="flex justify-between"><span className="text-slate-400">状态</span><span className={`font-semibold ${statusMap[selectedSlot.status].text}`}>{statusMap[selectedSlot.status].label}</span></div>
+                    {selectedSlot.customer && <div className="flex justify-between"><span className="text-slate-400">取货人</span><span className="font-medium text-slate-700">{selectedSlot.customer}</span></div>}
+                    {selectedSlot.platform && <div className="flex justify-between"><span className="text-slate-400">平台</span><span className="font-medium text-slate-700">{selectedSlot.platform}</span></div>}
+                    {selectedSlot.remain && <div className="flex justify-between"><span className="text-slate-400">剩余时间</span><span className="font-semibold text-emerald-600">{selectedSlot.remain}</span></div>}
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <button className="flex h-10 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 text-sm font-semibold text-blue-600"><Lightbulb size={16} /> 亮灯</button>
+                    <button className="flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-600"><Eye size={16} /> 详情</button>
+                  </div>
+                </Card>
+              )}
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}
+
+// ========== Page 2: 订单绑定 ==========
+function OrderBinding() {
+  const [tab, setTab] = useState("bind");
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [scanResult, setScanResult] = useState("");
+  const [scanning, setScanning] = useState(false);
+  const availableSlots = useMemo(() => shelfData.filter(s => s.online).flatMap(s => s.slots.filter(sl => sl.status === "empty")).map(s => ({ ...s, shelfName: s.code[0] + "货架" })), []);
+
+  const handleScan = () => { setScanning(true); setTimeout(() => { setScanning(false); setScanResult("DD202405120001"); }, 2000); };
+
+  return (
+    <div className="min-h-screen overflow-hidden bg-[#eef0f0] p-6 text-slate-800">
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(255,255,255,0.95),transparent_30%),radial-gradient(circle_at_80%_0%,rgba(216,226,255,0.55),transparent_25%),linear-gradient(135deg,rgba(255,255,255,0.35),rgba(220,225,230,0.28))]" />
+      <div className="relative mx-auto flex max-w-[1920px] gap-4">
+        <Sidebar />
+        <main className="flex-1 rounded-[34px] border border-white/85 bg-white/62 p-8 shadow-[14px_22px_54px_rgba(45,55,72,0.14),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-2xl">
+          <header className="mb-6 flex items-start justify-between gap-4">
+            <div><p className="text-sm font-medium text-slate-500">即时零售运营中台 〉 <span className="text-slate-900">订单绑定格口</span></p><h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-900">订单绑定格口</h1><p className="mt-1 text-slate-500">扫码或手动将订单分配到空闲格口</p></div>
+            <div className="flex items-center gap-3"><Btn>今日已绑定 128 单</Btn><IconBtn icon={Download} /><IconBtn icon={Upload} /></div>
+          </header>
+          <div className="mb-6 flex items-center gap-3">
+            {[{ key: "bind", icon: Link2, label: "快速绑定" }, { key: "scan", icon: QrCode, label: "扫码绑定" }, { key: "manual", icon: Keyboard, label: "手动输入" }].map(t => (
+              <button key={t.key} onClick={() => setTab(t.key)} className={`flex h-12 items-center gap-2 rounded-2xl border px-6 text-sm font-medium transition-all ${tab === t.key ? "border-violet-200 bg-violet-50 text-violet-700 shadow-[0_8px_18px_rgba(124,92,255,0.12)]" : "border-slate-200/80 bg-white/70 text-slate-600 shadow-[0_8px_18px_rgba(35,45,65,0.08)]"}`}><t.icon size={18} />{t.label}</button>
+            ))}
+          </div>
+          {tab === "bind" && (
+            <div className="grid grid-cols-[1fr_1fr_340px] gap-4">
+              <Card className="p-5">
+                <div className="mb-4 flex items-center justify-between"><h3 className="text-lg font-semibold text-slate-900">待绑定订单</h3><span className="rounded-full bg-violet-50 px-3 py-1 text-sm font-semibold text-violet-600">{pendingOrders.length} 单</span></div>
+                <div className="space-y-2">{pendingOrders.map(order => (
+                  <button key={order.id} onClick={() => setSelectedOrder(selectedOrder?.id === order.id ? null : order)} className={`w-full rounded-2xl p-4 text-left transition-all ${selectedOrder?.id === order.id ? "border-2 border-violet-400 bg-violet-50/80 shadow-[0_0_0_4px_rgba(124,92,255,0.12),0_8px_18px_rgba(124,92,255,0.15)]" : "border border-slate-200 bg-white/60 hover:bg-white"}`}>
+                    <div className="flex items-center justify-between"><span className="font-semibold text-slate-800">{order.id}</span><span className="text-xs text-slate-400">{order.time}</span></div>
+                    <div className="mt-1 flex items-center gap-2 text-sm text-slate-500"><span>{order.platform}</span><span>·</span><span>{order.customer}</span><span>·</span><span>{order.items}</span></div>
+                  </button>
+                ))}</div>
+              </Card>
+              <Card className="p-5">
+                <div className="mb-4 flex items-center justify-between"><h3 className="text-lg font-semibold text-slate-900">空闲格口</h3><span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-600">{availableSlots.length} 个</span></div>
+                <div className="grid grid-cols-4 gap-2">{availableSlots.map(slot => (
+                  <button key={slot.code} onClick={() => setSelectedSlot(selectedSlot?.code === slot.code ? null : slot)} className={`flex h-14 flex-col items-center justify-center rounded-xl border text-sm transition-all ${selectedSlot?.code === slot.code ? "border-emerald-400 bg-emerald-50 shadow-[0_0_0_4px_rgba(16,185,129,0.15),0_6px_14px_rgba(16,185,129,0.12)]" : "border-slate-200 bg-white/60 hover:bg-white"}`}>
+                    <span className="font-semibold text-slate-800">{slot.code}</span><span className="text-xs text-slate-400">{slot.shelfName}</span>
+                  </button>
+                ))}</div>
+              </Card>
+              <Card className="flex flex-col p-5">
+                <h3 className="mb-4 text-lg font-semibold text-slate-900">绑定确认</h3>
+                <div className="flex-1 space-y-4">
+                  <div className="rounded-2xl bg-slate-50/80 p-4"><p className="mb-2 text-sm text-slate-400">已选订单</p>{selectedOrder ? <div><p className="font-semibold text-slate-800">{selectedOrder.id}</p><p className="text-sm text-slate-500">{selectedOrder.customer} · {selectedOrder.platform}</p></div> : <p className="text-slate-400">请选择订单</p>}</div>
+                  <div className="flex justify-center"><Link2 size={24} className="text-violet-500" /></div>
+                  <div className="rounded-2xl bg-slate-50/80 p-4"><p className="mb-2 text-sm text-slate-400">分配格口</p>{selectedSlot ? <div><p className="font-semibold text-slate-800">{selectedSlot.code}</p><p className="text-sm text-slate-500">{selectedSlot.shelfName}</p></div> : <p className="text-slate-400">请选择格口</p>}</div>
+                </div>
+                <button disabled={!selectedOrder || !selectedSlot} className={`mt-4 flex h-12 items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition-all ${selectedOrder && selectedSlot ? "border border-violet-200 bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-[0_10px_22px_rgba(124,92,255,0.25)]" : "border border-slate-200 bg-slate-100 text-slate-400"}`}><CheckCircle2 size={18} /> 确认绑定</button>
+              </Card>
+            </div>
+          )}
+          {tab === "scan" && (
+            <div className="grid grid-cols-2 gap-4">
+              <Card className="flex flex-col items-center justify-center p-8">
+                <div className={`relative mb-6 grid h-64 w-64 place-items-center rounded-3xl ${scanning ? "bg-gradient-to-br from-violet-100 to-purple-50" : "bg-slate-100"}`}>
+                  {scanning ? <><div className="animate-bounce"><ScanLine size={48} /></div><p className="absolute bottom-4 text-sm text-violet-600">扫描中...</p></> : scanResult ? <div className="text-center"><CheckCircle2 size={48} className="mx-auto mb-2 text-emerald-500" /><p className="font-semibold text-slate-800">{scanResult}</p><p className="text-sm text-slate-500">订单已识别</p></div> : <QrCode size={64} className="text-slate-400" />}
+                </div>
+                <button onClick={handleScan} disabled={scanning} className="flex h-14 items-center gap-3 rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-500 to-purple-500 px-8 text-white shadow-[0_10px_22px_rgba(124,92,255,0.25)]"><ScanLine size={22} /> {scanning ? "扫描中..." : "开始扫码"}</button>
+                <p className="mt-4 text-sm text-slate-400">将订单二维码对准扫描窗口</p>
+              </Card>
+              <Card className="p-5">
+                <div className="mb-4 flex items-center justify-between"><h3 className="text-lg font-semibold text-slate-900">空闲格口</h3><span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-600">{availableSlots.length} 个</span></div>
+                <div className="grid grid-cols-4 gap-2">{availableSlots.map(slot => (
+                  <button key={slot.code} className="flex h-14 flex-col items-center justify-center rounded-xl border border-slate-200 bg-white/60 text-sm hover:bg-white"><span className="font-semibold text-slate-800">{slot.code}</span><span className="text-xs text-slate-400">{slot.shelfName}</span></button>
+                ))}</div>
+                <div className="mt-6 rounded-2xl bg-violet-50/80 p-4">
+                  <h4 className="mb-2 font-semibold text-slate-800">扫码结果</h4>
+                  {scanResult ? <div className="space-y-2 text-sm"><div className="flex justify-between"><span className="text-slate-500">订单号</span><span className="font-medium text-slate-700">{scanResult}</span></div><div className="flex justify-between"><span className="text-slate-500">平台</span><span className="font-medium text-slate-700">美团外卖</span></div><div className="flex justify-between"><span className="text-slate-500">商品</span><span className="font-medium text-slate-700">汉堡套餐 x1</span></div><div className="flex justify-between"><span className="text-slate-500">顾客</span><span className="font-medium text-slate-700">张明</span></div></div> : <p className="text-sm text-slate-400">扫码后将显示订单详情</p>}
+                </div>
+              </Card>
+            </div>
+          )}
+          {tab === "manual" && (
+            <div className="grid grid-cols-[400px_1fr] gap-4">
+              <Card className="p-5">
+                <h3 className="mb-4 text-lg font-semibold text-slate-900">手动输入绑定</h3>
+                <div className="space-y-4">
+                  <div><label className="mb-2 block text-sm font-medium text-slate-600">订单号</label><div className="flex gap-2"><input type="text" placeholder="输入订单号" className="h-12 flex-1 rounded-xl border border-slate-200 bg-white/70 px-4 outline-none focus:border-violet-300" /><IconBtn icon={Search} /></div></div>
+                  <div><label className="mb-2 block text-sm font-medium text-slate-600">选择格口</label><div className="grid grid-cols-4 gap-2">{availableSlots.map(slot => <button key={slot.code} className="flex h-12 flex-col items-center justify-center rounded-xl border border-slate-200 bg-white/60 text-sm hover:bg-white"><span className="font-semibold text-slate-800">{slot.code}</span></button>)}</div></div>
+                  <button className="w-full h-12 rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-500 to-purple-500 text-white font-semibold shadow-[0_10px_22px_rgba(124,92,255,0.25)]">确认绑定</button>
+                </div>
+              </Card>
+              <Card className="p-5">
+                <div className="mb-4 flex items-center justify-between"><h3 className="text-lg font-semibold text-slate-900">待绑定订单列表</h3><div className="flex items-center gap-2"><Btn>全部 {pendingOrders.length}</Btn><Btn>美团 {pendingOrders.filter(o => o.platform === "美团外卖").length}</Btn><Btn>饿了么 {pendingOrders.filter(o => o.platform === "饿了么").length}</Btn></div></div>
+                <table className="w-full text-sm"><thead className="text-slate-400"><tr className="border-b border-slate-100"><th className="py-3 font-medium">订单号</th><th className="font-medium">平台</th><th className="font-medium">顾客</th><th className="font-medium">商品</th><th className="font-medium">时间</th><th className="font-medium">操作</th></tr></thead><tbody>{pendingOrders.map(order => (
+                  <tr key={order.id} className="border-b border-slate-100 last:border-0"><td className="py-3 font-medium text-slate-700">{order.id}</td><td><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${order.platform === "美团外卖" ? "bg-yellow-50 text-yellow-700" : "bg-blue-50 text-blue-600"}`}>{order.platform}</span></td><td>{order.customer}</td><td className="text-slate-500">{order.items}</td><td className="text-slate-400">{order.time}</td><td><button className="font-semibold text-violet-600">快速绑定</button></td></tr>
+                ))}</tbody></table>
+              </Card>
+            </div>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+// ========== Page 3: 模块管理 ==========
+function LightModuleManagement() {
+  const [tab, setTab] = useState("list");
+  const [selectedModule, setSelectedModule] = useState(null);
+  const [selectedGroup, setSelectedGroup] = useState(groups[0]);
+  const [selectedModules, setSelectedModules] = useState([]);
+  const [brightness, setBrightness] = useState(80);
+
+  return (
+    <div className="min-h-screen overflow-hidden bg-[#eef0f0] p-6 text-slate-800">
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(255,255,255,0.95),transparent_30%),radial-gradient(circle_at_80%_0%,rgba(216,226,255,0.55),transparent_25%),linear-gradient(135deg,rgba(255,255,255,0.35),rgba(220,225,230,0.28))]" />
+      <div className="relative mx-auto flex max-w-[1920px] gap-4">
+        <Sidebar />
+        <main className="flex-1 rounded-[34px] border border-white/85 bg-white/62 p-8 shadow-[14px_22px_54px_rgba(45,55,72,0.14),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-2xl">
+          <header className="mb-6 flex items-start justify-between gap-4">
+            <div><p className="text-sm font-medium text-slate-500">即时零售运营中台 〉 <span className="text-slate-900">亮灯模块管理</span></p><h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-900">亮灯模块管理</h1><p className="mt-1 text-slate-500">配置、分组和批量操作灯光模块</p></div>
+            <div className="flex items-center gap-3"><div className="flex h-12 w-[260px] items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/70 px-4 shadow-[0_10px_22px_rgba(30,40,60,0.08)]"><Search /><input className="w-full bg-transparent text-sm outline-none" placeholder="搜索模块编号" /></div><Btn>导出配置</Btn><Btn>导入配置</Btn></div>
+          </header>
+          <section className="mb-5 grid grid-cols-5 gap-4">
+            {[{ icon: Layers, label: "模块总数", value: moduleList.length, color: "from-slate-100 to-slate-50 text-slate-600" }, { icon: Wifi, label: "在线", value: moduleList.filter(m => m.status === "在线").length, color: "from-emerald-100 to-teal-50 text-emerald-600" }, { icon: Wifi, label: "离线", value: moduleList.filter(m => m.status === "离线").length, color: "from-slate-100 to-slate-50 text-slate-500" }, { icon: Settings2, label: "维护中", value: moduleList.filter(m => m.status === "维护").length, color: "from-violet-100 to-purple-50 text-violet-600" }, { icon: TrendingUp, label: "平均温度", value: "36.2℃", color: "from-amber-100 to-orange-50 text-amber-600" }].map((s, i) => (
+              <Card key={i} className="p-4"><div className="flex items-center gap-3"><div className={`grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br ${s.color} shadow-lg`}><s.icon size={22} /></div><div><p className="text-sm text-slate-500">{s.label}</p><p className="text-2xl font-semibold">{s.value}</p></div></div></Card>
+            ))}
+          </section>
+          <div className="mb-6 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {[{ key: "list", icon: Layers, label: "模块列表" }, { key: "config", icon: Settings2, label: "参数配置" }, { key: "group", icon: Grid3X3, label: "分组管理" }, { key: "batch", icon: Zap, label: "批量操作" }].map(t => (
+                <button key={t.key} onClick={() => setTab(t.key)} className={`flex h-12 items-center gap-2 rounded-2xl border px-6 text-sm font-medium transition-all ${tab === t.key ? "border-violet-200 bg-violet-50 text-violet-700 shadow-[0_8px_18px_rgba(124,92,255,0.12)]" : "border-slate-200/80 bg-white/70 text-slate-600 shadow-[0_8px_18px_rgba(35,45,65,0.08)]"}`}><t.icon size={18} />{t.label}</button>
+              ))}
+            </div>
+            <div className="flex items-center gap-3">{selectedModules.length > 0 && <span className="text-sm text-slate-500">已选择 {selectedModules.length} 个模块</span>}<Btn>全部货架 <ChevronDown /></Btn><Btn active>全部状态</Btn></div>
+          </div>
+          {tab === "list" && (
+            <Card className="p-5">
+              <table className="w-full text-left text-sm"><thead className="text-slate-400"><tr className="border-b border-slate-100"><th className="py-3 w-10 font-medium"><input type="checkbox" className="h-4 w-4 rounded border-slate-300" /></th><th className="font-medium">模块编号</th><th className="font-medium">所属货架</th><th className="font-medium">通道数</th><th className="font-medium">在线状态</th><th className="font-medium">当前亮灯</th><th className="font-medium">亮度</th><th className="font-medium">温度</th><th className="font-medium">固件版本</th><th className="font-medium">最后心跳</th><th className="font-medium">操作</th></tr></thead><tbody>{moduleList.map(m => (
+                <tr key={m.code} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50"><td className="py-3"><input type="checkbox" checked={selectedModules.includes(m.code)} onChange={() => setSelectedModules(prev => prev.includes(m.code) ? prev.filter(c => c !== m.code) : [...prev, m.code])} className="h-4 w-4 rounded border-slate-300" /></td><td className="py-3 font-semibold text-slate-700">{m.code}</td><td>{m.shelf}</td><td>{m.channels}</td><td><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${m.status === "在线" ? "bg-emerald-50 text-emerald-600" : m.status === "离线" ? "bg-red-50 text-red-500" : "bg-violet-50 text-violet-600"}`}>{m.status}</span></td><td>{m.lights}</td><td><div className="flex items-center gap-2"><div className="h-2 w-16 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-amber-400" style={{ width: `${m.brightness}%` }} /></div><span className="text-xs text-slate-500">{m.brightness}%</span></div></td><td><div className="flex items-center gap-1"><Thermometer />{m.temp}</div></td><td>{m.fw}</td><td className="text-slate-400">{m.heartbeat}</td><td><div className="flex items-center gap-2"><button className="font-semibold text-blue-500">配置</button><button className="font-semibold text-slate-500">测试</button></div></td></tr>
+              ))}</tbody></table>
+            </Card>
+          )}
+          {tab === "config" && (
+            <div className="grid grid-cols-[1fr_400px] gap-4">
+              <Card className="p-5">
+                <div className="mb-4 flex items-center justify-between"><h3 className="text-lg font-semibold text-slate-900">选择模块</h3><span className="text-sm text-slate-400">选择一个模块进行配置</span></div>
+                <div className="grid grid-cols-4 gap-2">{moduleList.map(m => (
+                  <button key={m.code} onClick={() => setSelectedModule(m)} className={`flex h-16 flex-col items-center justify-center rounded-xl border text-sm transition-all ${selectedModule?.code === m.code ? "border-violet-400 bg-violet-50 shadow-[0_0_0_4px_rgba(124,92,255,0.12)]" : "border-slate-200 bg-white/60 hover:bg-white"}`}>
+                    <span className="font-semibold text-slate-800">{m.code}</span><span className={`text-xs ${m.status === "在线" ? "text-emerald-600" : "text-red-500"}`}>{m.status}</span>
+                  </button>
+                ))}</div>
+              </Card>
+              <Card className="p-5">
+                <h3 className="mb-4 text-lg font-semibold text-slate-900">模块配置</h3>
+                {selectedModule ? (
+                  <div className="space-y-5">
+                    <div className="rounded-2xl bg-slate-50/80 p-4"><p className="text-sm text-slate-400">模块信息</p><p className="mt-1 font-semibold text-slate-800">{selectedModule.code}</p><p className="text-sm text-slate-500">{selectedModule.shelf} · {selectedModule.channels} 通道</p></div>
+                    <div><div className="mb-2 flex items-center justify-between"><label className="text-sm font-medium text-slate-600">亮度调节</label><span className="text-sm font-semibold text-amber-600">{brightness}%</span></div><div className="flex items-center gap-3"><button onClick={() => setBrightness(Math.max(0, brightness - 10))} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white shadow-sm"><Minus /></button><input type="range" min="0" max="100" value={brightness} onChange={e => setBrightness(parseInt(e.target.value))} className="flex-1" style={{ background: `linear-gradient(to right, #fbbf24 ${brightness}%, #fde68a ${brightness}%)` }} /><button onClick={() => setBrightness(Math.min(100, brightness + 10))} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white shadow-sm"><Plus /></button></div></div>
+                    <div><label className="mb-2 block text-sm font-medium text-slate-600">灯光模式</label><div className="grid grid-cols-3 gap-2">{["常亮", "闪烁", "呼吸"].map(mode => <button key={mode} className={`h-10 rounded-xl border text-sm font-medium transition-all ${selectedModule.mode === mode ? "border-violet-300 bg-violet-50 text-violet-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>{mode}</button>)}</div></div>
+                    <div className="flex items-center justify-between"><span className="text-sm font-medium text-slate-600">远程控制</span><button className="relative h-7 w-12 rounded-full bg-emerald-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)]"><span className="absolute right-1 top-1 h-5 w-5 rounded-full bg-white shadow-md" /></button></div>
+                    <button className="w-full h-12 rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-500 to-purple-500 text-white font-semibold shadow-[0_10px_22px_rgba(124,92,255,0.25)]">保存配置</button>
+                  </div>
+                ) : <div className="flex h-64 flex-col items-center justify-center text-slate-400"><Settings2 size={48} className="mb-3 opacity-50" /><p>请选择一个模块进行配置</p></div>}
+              </Card>
+            </div>
+          )}
+          {tab === "group" && (
+            <div className="grid grid-cols-[300px_1fr] gap-4">
+              <Card className="p-5">
+                <div className="mb-4 flex items-center justify-between"><h3 className="text-lg font-semibold text-slate-900">分组列表</h3><IconBtn icon={Plus} /></div>
+                <div className="space-y-2">{groups.map(group => (
+                  <button key={group.id} onClick={() => setSelectedGroup(group)} className={`w-full rounded-2xl p-4 text-left transition-all ${selectedGroup?.id === group.id ? "border-2 border-violet-400 bg-violet-50/80" : "border border-slate-200 bg-white/60 hover:bg-white"}`}>
+                    <div className="flex items-center gap-3"><span className={`h-4 w-4 rounded-full bg-${group.color}-500`} /><span className="font-semibold text-slate-800">{group.name}</span></div>
+                    <p className="mt-1 text-sm text-slate-500">{group.modules.length} 个模块</p>
+                  </button>
+                ))}</div>
+              </Card>
+              <Card className="p-5">
+                {selectedGroup ? (
+                  <>
+                    <div className="mb-4 flex items-center justify-between"><div><h3 className="text-lg font-semibold text-slate-900">{selectedGroup.name}</h3><p className="text-sm text-slate-500">管理分组内的模块和格口</p></div><div className="flex items-center gap-2"><IconBtn icon={Edit3} /><IconBtn icon={Trash2} /></div></div>
+                    <div className="mb-4 rounded-2xl bg-slate-50/80 p-4"><p className="mb-2 text-sm text-slate-400">包含模块</p><div className="flex flex-wrap gap-2">{selectedGroup.modules.map(code => <span key={code} className="rounded-full bg-violet-100 px-3 py-1 text-sm font-medium text-violet-700">{code}</span>)}</div></div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <button className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 text-sm font-semibold text-emerald-600"><Lightbulb size={18} /> 全点亮灯</button>
+                      <button className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white text-sm font-semibold text-slate-600"><Power size={18} /> 全关灯光</button>
+                      <button className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 text-sm font-semibold text-blue-600"><RotateCcw size={18} /> 恢复默认</button>
+                    </div>
+                  </>
+                ) : <div className="flex h-96 flex-col items-center justify-center text-slate-400"><Grid3X3 size={48} className="mb-3 opacity-50" /><p>请选择一个分组</p></div>}
+              </Card>
+            </div>
+          )}
+          {tab === "batch" && (
+            <div className="grid grid-cols-[1fr_400px] gap-4">
+              <Card className="p-5">
+                <div className="mb-4 flex items-center justify-between"><h3 className="text-lg font-semibold text-slate-900">选择模块进行批量操作</h3><div className="flex items-center gap-2"><button onClick={() => setSelectedModules(moduleList.map(m => m.code))} className="text-sm font-medium text-violet-600">全选</button><span className="text-slate-300">|</span><button onClick={() => setSelectedModules([])} className="text-sm font-medium text-slate-500">取消全选</button></div></div>
+                <div className="mb-4 grid grid-cols-4 gap-2">{moduleList.map(m => (
+                  <button key={m.code} onClick={() => setSelectedModules(prev => prev.includes(m.code) ? prev.filter(c => c !== m.code) : [...prev, m.code])} className={`relative flex h-16 flex-col items-center justify-center rounded-xl border text-sm transition-all ${selectedModules.includes(m.code) ? "border-violet-400 bg-violet-50 shadow-[0_0_0_4px_rgba(124,92,255,0.12)]" : "border-slate-200 bg-white/60 hover:bg-white"}`}>
+                    {selectedModules.includes(m.code) && <span className="absolute right-1 top-1"><CheckCircle2 size={16} className="text-violet-500" /></span>}
+                    <span className="font-semibold text-slate-800">{m.code}</span><span className={`text-xs ${m.status === "在线" ? "text-emerald-600" : "text-red-500"}`}>{m.status}</span>
+                  </button>
+                ))}</div>
+                <div className="rounded-2xl bg-slate-50/80 p-4"><p className="text-sm text-slate-500">已选择 <span className="font-semibold text-violet-600">{selectedModules.length}</span> 个模块</p></div>
+              </Card>
+              <Card className="p-5">
+                <h3 className="mb-4 text-lg font-semibold text-slate-900">批量操作</h3>
+                <div className="space-y-3">
+                  <button disabled={selectedModules.length === 0} className={`flex w-full h-12 items-center gap-3 rounded-2xl border px-4 text-sm font-semibold transition-all ${selectedModules.length > 0 ? "border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100" : "border-slate-200 bg-slate-50 text-slate-400"}`}><Lightbulb size={18} /> 批量点亮</button>
+                  <button disabled={selectedModules.length === 0} className={`flex w-full h-12 items-center gap-3 rounded-2xl border px-4 text-sm font-semibold transition-all ${selectedModules.length > 0 ? "border-slate-200 bg-white text-slate-600 hover:bg-slate-50" : "border-slate-200 bg-slate-50 text-slate-400"}`}><EyeOff size={18} /> 批量关闭</button>
+                  <button disabled={selectedModules.length === 0} className={`flex w-full h-12 items-center gap-3 rounded-2xl border px-4 text-sm font-semibold transition-all ${selectedModules.length > 0 ? "border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100" : "border-slate-200 bg-slate-50 text-slate-400"}`}><SlidersHorizontal size={18} /> 设置亮度</button>
+                  <button disabled={selectedModules.length === 0} className={`flex w-full h-12 items-center gap-3 rounded-2xl border px-4 text-sm font-semibold transition-all ${selectedModules.length > 0 ? "border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100" : "border-slate-200 bg-slate-50 text-slate-400"}`}><Zap size={18} /> 设置模式</button>
+                  <button disabled={selectedModules.length === 0} className={`flex w-full h-12 items-center gap-3 rounded-2xl border px-4 text-sm font-semibold transition-all ${selectedModules.length > 0 ? "border-violet-200 bg-violet-50 text-violet-600 hover:bg-violet-100" : "border-slate-200 bg-slate-50 text-slate-400"}`}><Settings2 size={18} /> 设为维护</button>
+                  <button disabled={selectedModules.length === 0} className={`flex w-full h-12 items-center gap-3 rounded-2xl border px-4 text-sm font-semibold transition-all ${selectedModules.length > 0 ? "border-slate-200 bg-white text-slate-600 hover:bg-slate-50" : "border-slate-200 bg-slate-50 text-slate-400"}`}><RefreshCw size={18} /> 批量升级固件</button>
+                </div>
+              </Card>
+            </div>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+// ========== App ==========
+function App() {
+  const [page, setPage] = useState("kanban");
+  return (
+    <>
+      <div className="page-nav">
+        <button className={page === "kanban" ? "active" : ""} onClick={() => setPage("kanban")}>格口看板</button>
+        <button className={page === "order" ? "active" : ""} onClick={() => setPage("order")}>订单绑定</button>
+        <button className={page === "module" ? "active" : ""} onClick={() => setPage("module")}>模块管理</button>
+      </div>
+      {page === "kanban" && <ShelfKanban />}
+      {page === "order" && <OrderBinding />}
+      {page === "module" && <LightModuleManagement />}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
